@@ -8,6 +8,7 @@ import { SellersModule } from './sellers/sellers.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { QueryModule } from './query/query.module';
 import { PiersModule } from './piers/piers.module';
+import { CashFlowVersionsModule } from './cash-flow-versions/cash-flow-versions.module';
 
 @Module({
   imports: [
@@ -61,9 +62,10 @@ import { PiersModule } from './piers/piers.module';
     SellersModule,
     DashboardModule,
     PiersModule,
+    CashFlowVersionsModule,
     //QueryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
