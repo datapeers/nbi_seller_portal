@@ -4,7 +4,7 @@ import { LocalAuthGuard } from './guard/local.guard';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Get()
   async getHello() {
@@ -14,6 +14,11 @@ export class AuthController {
   @Post('login')
   async login(@Body() body: any) {
     return this.authService.login(body.username, body.password);
+  }
+
+  @Post('login-with-role')
+  async loginWithRole(@Body() body: any) {
+    return this.authService.loginWithRole(body.username, body.password);
   }
 
   @Post('refresh')

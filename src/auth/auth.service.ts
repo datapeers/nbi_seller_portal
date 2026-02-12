@@ -8,7 +8,7 @@ export class AuthService {
   constructor(
     private readonly sellerService: SellersService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async validateUser(username: string, password: string): Promise<any> {
     const user = await this.sellerService.find(username);
@@ -65,6 +65,20 @@ export class AuthService {
       refresh_token: refreshToken,
     };
   }
+
+  async loginWithRole(username: string, password: string) {
+    const authData = await this.login(username, password);
+    const user = authData.user.user;
+
+    // Buscar el rol usando el code del usuario
+    const roleData = await this.sellerService.findRoleByCode(+user.code);
+
+    return {
+      ...authData,
+      role: roleData,
+    };
+  }
+
 
   async refresh(token: string) {
     const payload = this.jwtService.verify(token, {

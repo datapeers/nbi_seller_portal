@@ -3,6 +3,7 @@ import { CreateSellerDto } from './dto/create-seller.dto';
 import { UpdateSellerDto } from './dto/update-seller.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Seller } from './entities/seller.entity';
+import { SellerRole } from './entities/seller-role.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
@@ -11,7 +12,9 @@ export class SellersService {
   constructor(
     @InjectRepository(Seller, 'postgresConnection')
     private readonly sellerRepository: Repository<Seller>,
-  ) {}
+    @InjectRepository(SellerRole, 'postgresConnection')
+    private readonly sellerRoleRepository: Repository<SellerRole>,
+  ) { }
 
   create(createSellerDto: CreateSellerDto) {
     const newSeller = this.sellerRepository.create({
@@ -52,6 +55,14 @@ export class SellersService {
     });
 
     return seller;
+  }
+
+  async findRoleByCode(code: number) {
+    const role = await this.sellerRoleRepository.findOne({
+      where: { code },
+    });
+
+    return role;
   }
 
   async findById(id: string) {
