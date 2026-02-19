@@ -65,6 +65,14 @@ export class SellersService {
     return role;
   }
 
+  async findRoleByEmail(email: string) {
+    const role = await this.sellerRoleRepository.findOne({
+      where: { email },
+    });
+
+    return role;
+  }
+
   async findById(id: string) {
     const seller = await this.sellerRepository.findOne({
       where: { id },

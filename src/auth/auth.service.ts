@@ -1,14 +1,28 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import * as sgMail from '@sendgrid/mail';
 import { SellersService } from '..//sellers/sellers.service';
 import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { OtpCode } from './entities/otp-code.entity';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly sellerService: SellersService,
     private readonly jwtService: JwtService,
-  ) { }
+    @InjectRepository(OtpCode, 'postgresConnection')
+    private readonly otpRepository: Repository<OtpCode>,
+    private readonly configService: ConfigService,
+  ) {
+    sgMail.setApiKey(this.configService.get('SENDGRID_API_KEY'));
+  }
 
   async validateUser(username: string, password: string): Promise<any> {
     const user = await this.sellerService.find(username);
@@ -94,6 +108,87 @@ export class AuthService {
       user,
       access_token: accessToken,
       refresh_token: refreshToken,
+    };
+  }
+
+  async refreshOtp(token: string) {
+    const payload = this.jwtService.verify(token, {
+      secret: process.env.SECRET_SEED,
+    });
+
+    const role = await this.sellerService.findRoleByCode(+payload.sub);
+    if (!role) {
+      throw new UnauthorizedException('Token inválido');
+    }
+
+    const newPayload = { username: role.name, sub: role.code };
+    const accessToken = this.jwtService.sign(newPayload, { expiresIn: '1d' });
+    const refreshToken = this.jwtService.sign(newPayload, { expiresIn: '30d' });
+
+    return {
+      user: { user: role },
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      role,
+    };
+  }
+
+  // ── OTP login (segundo portal) ──────────────────────────────────────────────
+
+  async requestOtp(email: string): Promise<void> {
+    const role = await this.sellerService.findRoleByEmail(email);
+    if (!role) {
+      throw new NotFoundException('Email no encontrado');
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    // Invalidar códigos anteriores sin usar para este correo
+    await this.otpRepository.update({ email, used: false }, { used: true });
+
+    await this.otpRepository.save({ email, code, expiresAt, used: false });
+
+    await sgMail.send({
+      to: email,
+      from: this.configService.get('SENDGRID_FROM_EMAIL'),
+      subject: 'Tu código de acceso',
+      text: `Tu código de acceso es: ${code}. Expira en 10 minutos.`,
+      html: `<p>Tu código de acceso es: <strong>${code}</strong></p><p>Expira en 10 minutos.</p>`,
+    });
+  }
+
+  async loginWithOtp(email: string, code: string) {
+    const role = await this.sellerService.findRoleByEmail(email);
+    if (!role) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    const otpRecord = await this.otpRepository.findOne({
+      where: { email, code, used: false },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!otpRecord) {
+      throw new UnauthorizedException('Código inválido');
+    }
+
+    if (new Date() > otpRecord.expiresAt) {
+      await this.otpRepository.update(otpRecord.id, { used: true });
+      throw new UnauthorizedException('Código expirado');
+    }
+
+    await this.otpRepository.update(otpRecord.id, { used: true });
+
+    const payload = { username: role.name, sub: role.code };
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '30d' });
+
+    return {
+      user: { user: role },
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      role,
     };
   }
 }

@@ -6,6 +6,8 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { OtpCode } from './entities/otp-code.entity';
 
 @Module({
   imports: [
@@ -20,6 +22,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         };
       },
     }),
+    TypeOrmModule.forFeature([OtpCode], 'postgresConnection'),
     SellersModule,
   ],
   providers: [AuthService, JwtStrategy],
