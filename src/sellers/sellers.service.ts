@@ -14,7 +14,7 @@ export class SellersService {
     private readonly sellerRepository: Repository<Seller>,
     @InjectRepository(SellerRole, 'postgresConnection')
     private readonly sellerRoleRepository: Repository<SellerRole>,
-  ) { }
+  ) {}
 
   create(createSellerDto: CreateSellerDto) {
     const newSeller = this.sellerRepository.create({
@@ -68,6 +68,14 @@ export class SellersService {
   async findRoleByEmail(email: string) {
     const role = await this.sellerRoleRepository.findOne({
       where: { email },
+    });
+
+    return role;
+  }
+
+  async findRoleByName(name: string) {
+    const role = await this.sellerRoleRepository.findOne({
+      where: { name },
     });
 
     return role;

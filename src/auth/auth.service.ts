@@ -42,7 +42,11 @@ export class AuthService {
   async getUserByName(name: string): Promise<any> {
     const user = await this.sellerService.findByName(name);
     if (!user) {
-      throw new UnauthorizedException('Invalid username or password');
+      const userAdmin = await this.sellerService.findRoleByName(name);
+      if (!userAdmin) {
+        throw new UnauthorizedException('Invalid username or password');
+      }
+      return { user: userAdmin };
     }
 
     delete user.password;
@@ -92,7 +96,6 @@ export class AuthService {
       role: roleData,
     };
   }
-
 
   async refresh(token: string) {
     const payload = this.jwtService.verify(token, {
@@ -152,9 +155,9 @@ export class AuthService {
     await sgMail.send({
       to: email,
       from: this.configService.get('SENDGRID_FROM_EMAIL'),
-      subject: 'Tu código de acceso',
-      text: `Tu código de acceso es: ${code}. Expira en 10 minutos.`,
-      html: `<p>Tu código de acceso es: <strong>${code}</strong></p><p>Expira en 10 minutos.</p>`,
+      subject: 'Access code',
+      text: `Your access code is: ${code}. It expires in 10 minutes.`,
+      html: `<p>Your access code is: <strong>${code}</strong></p><p>It expires in 10 minutes.</p>`,
     });
   }
 
