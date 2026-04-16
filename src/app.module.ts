@@ -9,6 +9,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { QueryModule } from './query/query.module';
 import { PiersModule } from './piers/piers.module';
 import { CashFlowVersionsModule } from './cash-flow-versions/cash-flow-versions.module';
+import { RefreshDashboardModule } from './refresh-dashboard/refresh-dashboard.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { CashFlowVersionsModule } from './cash-flow-versions/cash-flow-versions.
     DashboardModule,
     PiersModule,
     CashFlowVersionsModule,
+    RefreshDashboardModule,
     //QueryModule,
   ],
   controllers: [AppController],
