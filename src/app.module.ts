@@ -10,6 +10,8 @@ import { QueryModule } from './query/query.module';
 import { PiersModule } from './piers/piers.module';
 import { CashFlowVersionsModule } from './cash-flow-versions/cash-flow-versions.module';
 import { RefreshDashboardModule } from './refresh-dashboard/refresh-dashboard.module';
+import { CashflowNbiAlimentosModule } from './cashflow-nbi-alimentos/cashflow-nbi-alimentos.module';
+import { CashflowNorthernModule } from './cashflow-northern/cashflow-northern.module';
 
 @Module({
   imports: [
@@ -65,6 +67,8 @@ import { RefreshDashboardModule } from './refresh-dashboard/refresh-dashboard.mo
     PiersModule,
     CashFlowVersionsModule,
     RefreshDashboardModule,
+    CashflowNbiAlimentosModule,
+    CashflowNorthernModule,
     //QueryModule,
   ],
   controllers: [AppController],
