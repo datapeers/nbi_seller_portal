@@ -13,4 +13,7 @@ export class SellerRole {
 
     @Column({ length: 20 })
     rolename: string;
+
+    @Column({ nullable: true })
+    buyercode: number;
 }
