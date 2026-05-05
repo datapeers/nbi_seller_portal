@@ -8,4 +8,4 @@ import { QueryModel } from './entities/query.entity';
   providers: [QueryService],
   exports: [QueryService],
 })
-export class QueryModule {}
+export class QueryModule { }
