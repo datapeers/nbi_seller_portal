@@ -12,6 +12,7 @@ import { CashFlowVersionsModule } from './cash-flow-versions/cash-flow-versions.
 import { RefreshDashboardModule } from './refresh-dashboard/refresh-dashboard.module';
 import { CashflowNbiAlimentosModule } from './cashflow-nbi-alimentos/cashflow-nbi-alimentos.module';
 import { CashflowNorthernModule } from './cashflow-northern/cashflow-northern.module';
+import { EmailsModule } from './emails/emails.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { CashflowNorthernModule } from './cashflow-northern/cashflow-northern.mo
     RefreshDashboardModule,
     CashflowNbiAlimentosModule,
     CashflowNorthernModule,
+    EmailsModule,
     //QueryModule,
   ],
   controllers: [AppController],
