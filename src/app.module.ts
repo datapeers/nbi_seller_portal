@@ -13,6 +13,8 @@ import { RefreshDashboardModule } from './refresh-dashboard/refresh-dashboard.mo
 import { CashflowNbiAlimentosModule } from './cashflow-nbi-alimentos/cashflow-nbi-alimentos.module';
 import { CashflowNorthernModule } from './cashflow-northern/cashflow-northern.module';
 import { EmailsModule } from './emails/emails.module';
+import { PoSellerAssignmentsModule } from './po-seller-assignments/po-seller-assignments.module';
+import { UnsoldPoModule } from './unsold-po/unsold-po.module';
 
 @Module({
   imports: [
@@ -52,7 +54,8 @@ import { EmailsModule } from './emails/emails.module';
       password: process.env.DB_PASSWORD_SQLS,
       database: process.env.DB_NAME_SQLS,
       autoLoadEntities: true,
-      synchronize: true,
+      synchronize: false,
+      dropSchema: false,
 
       options: {
         encrypt: true, // Necesario para Azure
@@ -71,6 +74,8 @@ import { EmailsModule } from './emails/emails.module';
     CashflowNbiAlimentosModule,
     CashflowNorthernModule,
     EmailsModule,
+    PoSellerAssignmentsModule,
+    UnsoldPoModule,
     //QueryModule,
   ],
   controllers: [AppController],
