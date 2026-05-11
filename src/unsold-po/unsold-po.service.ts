@@ -3,8 +3,6 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { QueryService } from 'src/query/query.service';
 import { DataSource } from 'typeorm';
 
-type AssignmentStatus = 'No' | 'Partial' | 'Full';
-
 @Injectable()
 export class UnsoldPoService {
   constructor(
@@ -14,27 +12,31 @@ export class UnsoldPoService {
   ) {}
 
   async getByBuyer(buyerCode: number) {
-    // Run all three sources in parallel — each uses its own connection/pool
     const [poRows, assignmentRows, sellerRows] = await Promise.all([
       this.runMssqlNamedQuery('Unsold PO By buyer', [buyerCode]),
-      this.loadAssignments(),
+      this.runMssqlNamedQuery('PO SellerAssignments', []),
       this.runMssqlNamedQuery('Sellers Info', []),
     ]);
 
-    // jobCode -> total assigned lbs across all sellers
-    const jobAssignedLbs = new Map<string, number>();
-    // jobCode -> ordered list of { seller code, per-seller lbs }
-    const jobSellerEntries = new Map<string, { code: number; lbs: number }[]>();
-
+    // jobCode -> aggregated assignment data (multiple rows per JobCode when multiple sellers)
+    const assignmentByJob = new Map<string, { totalSellerWeight: number; spCodes: string[]; sellerWeights: number[] }>();
     for (const row of assignmentRows) {
-      const jobCode = String(row.jobCode ?? '');
-      const lbs = row.assignedLbs;
-      const sellerCode = Number(row.sellerCode);
-
-      jobAssignedLbs.set(jobCode, (jobAssignedLbs.get(jobCode) ?? 0) + lbs);
-
-      if (!jobSellerEntries.has(jobCode)) jobSellerEntries.set(jobCode, []);
-      jobSellerEntries.get(jobCode)!.push({ code: sellerCode, lbs });
+      const jobCode = String(row.JobCode ?? row.jobCode ?? '');
+      if (!jobCode) continue;
+      const entry = assignmentByJob.get(jobCode);
+      const lbs = Number(row.SellerWeight || 0);
+      const spCode = String(row.SPCode ?? '').trim();
+      if (entry) {
+        entry.totalSellerWeight += lbs;
+        if (spCode) entry.spCodes.push(spCode);
+        entry.sellerWeights.push(lbs);
+      } else {
+        assignmentByJob.set(jobCode, {
+          totalSellerWeight: lbs,
+          spCodes: spCode ? [spCode] : [],
+          sellerWeights: [lbs],
+        });
+      }
     }
 
     // sellerCode -> seller name
@@ -46,47 +48,49 @@ export class UnsoldPoService {
     }
 
     return poRows.map((row) =>
-      this.enrichRow(row, jobAssignedLbs, jobSellerEntries, sellerNameMap),
+      this.enrichRow(row, assignmentByJob, sellerNameMap),
     );
   }
 
   private enrichRow(
     row: any,
-    jobAssignedLbs: Map<string, number>,
-    jobSellerEntries: Map<string, { code: number; lbs: number }[]>,
+    assignmentByJob: Map<string, { totalSellerWeight: number; spCodes: string[]; sellerWeights: number[] }>,
     sellerNameMap: Map<number, string>,
   ) {
     const jobCode = String(row.JobCode ?? row.jobCode ?? '');
-    const poundsAvailable = parseFloat(row.PoundsAvailable ?? row.poundsAvailable ?? 0) || 0;
+    const assignment = assignmentByJob.get(jobCode);
+    const poundsAvailable = Number(row.PoundsAvailable ?? row.poundsAvailable ?? 0) || 0;
 
-    const assignedLbs = jobAssignedLbs.get(jobCode) ?? 0;
-    const remainingAvailable = parseFloat(
-      Math.max(poundsAvailable - assignedLbs, 0).toFixed(4),
-    );
-
-    const entries = jobSellerEntries.get(jobCode) ?? [];
-    const assignedSellerNames = entries
-      .map(({ code }) => sellerNameMap.get(code) ?? String(code))
-      .join(',');
-    const sellerWeight = entries
-      .map(({ lbs }) => lbs)
-      .join(',');
-
-    let assignmentStatus: AssignmentStatus;
-    if (assignedLbs === 0) {
-      assignmentStatus = 'No';
-    } else if (assignedLbs < poundsAvailable) {
-      assignmentStatus = 'Partial';
-    } else {
-      assignmentStatus = 'Full';
+    if (!assignment) {
+      return {
+        ...row,
+        AssignedLbs: 0,
+        RemainingAvailable: poundsAvailable,
+        AssignedSellerNames: '',
+        SellerWeight: '',
+        AssignmentStatus: 'No' as const,
+      };
     }
+
+    const assignedLbs = assignment.totalSellerWeight;
+    const remainingAvailable = Math.max(poundsAvailable - assignedLbs, 0);
+
+    const assignedSellerNames = assignment.spCodes
+      .map((c) => {
+        const code = Number(c);
+        return isNaN(code) ? c : (sellerNameMap.get(code) ?? c);
+      })
+      .join(',');
+
+    const assignmentStatus: 'No' | 'Partial' | 'Full' =
+      assignedLbs <= 0 ? 'No' : remainingAvailable > 0 ? 'Partial' : 'Full';
 
     return {
       ...row,
-      AssignedLbs: assignedLbs,
+      AssignedLbs: assignment.sellerWeights.join(','),
       RemainingAvailable: remainingAvailable,
       AssignedSellerNames: assignedSellerNames,
-      SellerWeight: sellerWeight,
+      SellerWeight: assignment.sellerWeights.join(','),
       AssignmentStatus: assignmentStatus,
     };
   }
@@ -103,32 +107,6 @@ export class UnsoldPoService {
       );
     } catch (error) {
       throw new InternalServerErrorException(`Named query "${name}" failed`);
-    } finally {
-      await runner.release();
-    }
-  }
-
-  // Aggregates assignment rows from MSSQL Datapeers
-  private async loadAssignments(): Promise<{ jobCode: string; sellerCode: number; assignedLbs: number }[]> {
-    const runner = this.mssqlDataSource.createQueryRunner();
-    await runner.connect();
-    try {
-      const rows = await runner.query(`
-        SELECT
-          jobcode,
-          sellercode,
-          SUM(assignedlbs) AS assignedlbs
-        FROM PO_SellerAssignments
-        GROUP BY jobcode, sellercode
-      `);
-
-      return rows.map((row: any) => ({
-        jobCode: String(row.jobcode ?? ''),
-        sellerCode: Number(row.sellercode),
-        assignedLbs: Number(row.assignedlbs) || 0,
-      }));
-    } catch (error) {
-      throw new InternalServerErrorException('Failed to load assignments');
     } finally {
       await runner.release();
     }

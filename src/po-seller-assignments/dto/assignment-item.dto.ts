@@ -20,5 +20,5 @@ export class AssignmentItemDto {
   @IsOptional()
   @IsNumber()
   @IsPositive()
-  availableLbs?: number;
+  availableLbs: number;
 }
