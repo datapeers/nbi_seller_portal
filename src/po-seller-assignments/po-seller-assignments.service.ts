@@ -7,6 +7,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { QueryService } from 'src/query/query.service';
 import { DataSource, Repository } from 'typeorm';
 import { BulkCreatePoSellerAssignmentDto } from './dto/bulk-create-po-seller-assignment.dto';
+import { BulkDeletePoSellerAssignmentDto } from './dto/bulk-delete-po-seller-assignment.dto';
 import { AssignmentItemDto } from './dto/assignment-item.dto';
 import { PoSellerAssignment } from './entities/po-seller-assignment.entity';
 
@@ -111,6 +112,34 @@ export class PoSellerAssignmentsService {
       return parseFloat(row.PoundsAvailable ?? row.poundsAvailable ?? 0) || 0;
     } finally {
       await runner.release();
+    }
+  }
+
+  async bulkDelete(dto: BulkDeletePoSellerAssignmentDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      let totalDeleted = 0;
+
+      for (const item of dto.assignments) {
+        const result = await queryRunner.manager.delete(PoSellerAssignment, {
+          jobCode: item.jobCode.trim(),
+          sellerCode: item.sellerCode,
+        });
+        totalDeleted += result.affected ?? 0;
+      }
+
+      await queryRunner.commitTransaction();
+      return { deleted: totalDeleted };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new InternalServerErrorException(
+        error instanceof Error ? error.message : 'Failed to delete assignments',
+      );
+    } finally {
+      await queryRunner.release();
     }
   }
 
