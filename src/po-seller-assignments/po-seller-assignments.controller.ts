@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { BulkCreatePoSellerAssignmentDto } from './dto/bulk-create-po-seller-assignment.dto';
+import { BulkDeletePoSellerAssignmentDto } from './dto/bulk-delete-po-seller-assignment.dto';
 import { PoSellerAssignmentsService } from './po-seller-assignments.service';
 
 @Controller('po-seller-assignments')
@@ -9,6 +10,11 @@ export class PoSellerAssignmentsController {
   @Post()
   bulkCreate(@Body() dto: BulkCreatePoSellerAssignmentDto) {
     return this.service.bulkCreate(dto);
+  }
+
+  @Delete()
+  bulkDelete(@Body() dto: BulkDeletePoSellerAssignmentDto) {
+    return this.service.bulkDelete(dto);
   }
 
   @Get()

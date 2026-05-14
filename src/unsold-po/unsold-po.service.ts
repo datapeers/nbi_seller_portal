@@ -19,22 +19,25 @@ export class UnsoldPoService {
     ]);
 
     // jobCode -> aggregated assignment data (multiple rows per JobCode when multiple sellers)
-    const assignmentByJob = new Map<string, { totalSellerWeight: number; spCodes: string[]; sellerWeights: number[] }>();
+    const assignmentByJob = new Map<string, { totalSellerWeight: number; spCodes: string[]; sellerWeights: number[]; source: string | null }>();
     for (const row of assignmentRows) {
       const jobCode = String(row.JobCode ?? row.jobCode ?? '');
       if (!jobCode) continue;
       const entry = assignmentByJob.get(jobCode);
       const lbs = Number(row.SellerWeight || 0);
       const spCode = String(row.SPCode ?? '').trim();
+      const source = row.Source ?? row.source ?? null;
       if (entry) {
         entry.totalSellerWeight += lbs;
         if (spCode) entry.spCodes.push(spCode);
         entry.sellerWeights.push(lbs);
+        if (entry.source === null && source !== null) entry.source = source;
       } else {
         assignmentByJob.set(jobCode, {
           totalSellerWeight: lbs,
           spCodes: spCode ? [spCode] : [],
           sellerWeights: [lbs],
+          source,
         });
       }
     }
@@ -54,7 +57,7 @@ export class UnsoldPoService {
 
   private enrichRow(
     row: any,
-    assignmentByJob: Map<string, { totalSellerWeight: number; spCodes: string[]; sellerWeights: number[] }>,
+    assignmentByJob: Map<string, { totalSellerWeight: number; spCodes: string[]; sellerWeights: number[]; source: string | null }>,
     sellerNameMap: Map<number, string>,
   ) {
     const jobCode = String(row.JobCode ?? row.jobCode ?? '');
@@ -69,6 +72,7 @@ export class UnsoldPoService {
         AssignedSellerNames: '',
         SellerWeight: '',
         AssignmentStatus: 'No' as const,
+        Source: null,
       };
     }
 
@@ -92,6 +96,7 @@ export class UnsoldPoService {
       AssignedSellerNames: assignedSellerNames,
       SellerWeight: assignment.sellerWeights.join(','),
       AssignmentStatus: assignmentStatus,
+      Source: assignment.source,
     };
   }
 
