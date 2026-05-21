@@ -19,6 +19,10 @@ export class AssignmentItemDto {
 
   @IsOptional()
   @IsNumber()
+  calculatedProfit?: number;
+
+  @IsOptional()
+  @IsNumber()
   @IsPositive()
   availableLbs: number;
 }

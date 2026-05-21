@@ -20,6 +20,9 @@ export class PoSellerAssignment {
   @Column({ name: 'buyercode', type: 'int' })
   buyerCode: number;
 
+  @Column({ name: 'calculatedprofit', type: 'decimal', precision: 18, scale: 4, nullable: true })
+  calculatedProfit: number | null;
+
   @CreateDateColumn({ name: 'createddate' })
   createdDate: Date;
 }
