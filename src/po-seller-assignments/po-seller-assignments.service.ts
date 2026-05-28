@@ -39,6 +39,7 @@ export class PoSellerAssignmentsService {
           sellerCode: item.sellerCode,
           assignedLbs: item.assignedLbs,
           buyerCode: item.buyerCode,
+          calculatedProfit: item.calculatedProfit ?? null,
         });
         inserted.push(await queryRunner.manager.save(PoSellerAssignment, row));
       }

@@ -9,7 +9,7 @@ export class UnsoldPoService {
     @InjectDataSource('mssqlConnection')
     private readonly mssqlDataSource: DataSource,
     private readonly queryService: QueryService,
-  ) {}
+  ) { }
 
   async getByBuyer(buyerCode: number) {
     const [poRows, assignmentRows, sellerRows] = await Promise.all([
@@ -19,7 +19,7 @@ export class UnsoldPoService {
     ]);
 
     // jobCode -> aggregated assignment data (multiple rows per JobCode when multiple sellers)
-    const assignmentByJob = new Map<string, { totalSellerWeight: number; spCodes: string[]; sellerWeights: number[]; source: string | null }>();
+    const assignmentByJob = new Map<string, { totalSellerWeight: number; spCodes: string[]; sellerWeights: number[]; source: string | null; calculatedProfit: number | null }>();
     for (const row of assignmentRows) {
       const jobCode = String(row.JobCode ?? row.jobCode ?? '');
       if (!jobCode) continue;
@@ -27,17 +27,21 @@ export class UnsoldPoService {
       const lbs = Number(row.SellerWeight || 0);
       const spCode = String(row.SPCode ?? '').trim();
       const source = row.Source ?? row.source ?? null;
+      const profit = row.CalculatedProfit ?? row.calculatedProfit ?? row.calculatedprofit ?? null;
+      const profitValue = profit !== null ? Number(profit) : null;
       if (entry) {
         entry.totalSellerWeight += lbs;
         if (spCode) entry.spCodes.push(spCode);
         entry.sellerWeights.push(lbs);
         if (entry.source === null && source !== null) entry.source = source;
+        if (entry.calculatedProfit === null && profitValue !== null) entry.calculatedProfit = profitValue;
       } else {
         assignmentByJob.set(jobCode, {
           totalSellerWeight: lbs,
           spCodes: spCode ? [spCode] : [],
           sellerWeights: [lbs],
           source,
+          calculatedProfit: profitValue,
         });
       }
     }
@@ -57,22 +61,27 @@ export class UnsoldPoService {
 
   private enrichRow(
     row: any,
-    assignmentByJob: Map<string, { totalSellerWeight: number; spCodes: string[]; sellerWeights: number[]; source: string | null }>,
+    assignmentByJob: Map<string, { totalSellerWeight: number; spCodes: string[]; sellerWeights: number[]; source: string | null; calculatedProfit: number | null }>,
     sellerNameMap: Map<number, string>,
   ) {
     const jobCode = String(row.JobCode ?? row.jobCode ?? '');
     const assignment = assignmentByJob.get(jobCode);
     const poundsAvailable = Number(row.PoundsAvailable ?? row.poundsAvailable ?? 0) || 0;
 
+    // Strip all profit field variants from the row to avoid duplicates in the response
+    const { CalculatedProft, CalculatedProfit: _cp1, calculatedProfit: _cp2, calculatedprofit: _cp3, ...baseRow } = row;
+    const rowProfit = CalculatedProft ?? _cp1 ?? _cp2 ?? _cp3 ?? null;
+
     if (!assignment) {
       return {
-        ...row,
+        ...baseRow,
         AssignedLbs: 0,
         RemainingAvailable: poundsAvailable,
         AssignedSellerNames: '',
         SellerWeight: '',
         AssignmentStatus: 'No' as const,
         Source: null,
+        CalculatedProfit: rowProfit,
       };
     }
 
@@ -90,13 +99,16 @@ export class UnsoldPoService {
       assignedLbs <= 0 ? 'No' : remainingAvailable > 0 ? 'Partial' : 'Full';
 
     return {
-      ...row,
+      ...baseRow,
       AssignedLbs: assignment.sellerWeights.join(','),
       RemainingAvailable: remainingAvailable,
       AssignedSellerNames: assignedSellerNames,
       SellerWeight: assignment.sellerWeights.join(','),
       AssignmentStatus: assignmentStatus,
       Source: assignment.source,
+      CalculatedProfit: assignment.calculatedProfit != null
+        ? assignment.calculatedProfit
+        : rowProfit,
     };
   }
 
