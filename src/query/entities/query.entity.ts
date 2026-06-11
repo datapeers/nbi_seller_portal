@@ -8,7 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity()
+@Entity('query_mirror')
 export class QueryModel {
   @PrimaryGeneratedColumn('increment')
   id: number;
