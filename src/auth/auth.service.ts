@@ -11,6 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OtpCode } from './entities/otp-code.entity';
 import { ConfigService } from '@nestjs/config';
+import { NbiSsoService } from './nbi-sso.service';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +21,7 @@ export class AuthService {
     @InjectRepository(OtpCode, 'postgresConnection')
     private readonly otpRepository: Repository<OtpCode>,
     private readonly configService: ConfigService,
+    private readonly nbiSsoService: NbiSsoService,
   ) {
     sgMail.setApiKey(this.configService.get('SENDGRID_API_KEY'));
   }
@@ -182,6 +184,28 @@ export class AuthService {
     }
 
     await this.otpRepository.update(otpRecord.id, { used: true });
+
+    const payload = { username: role.name, sub: role.code };
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '30d' });
+
+    return {
+      user: { user: role },
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      role,
+    };
+  }
+
+  // ── NBI Auth SSO ─────────────────────────────────────────────────────────
+
+  async loginWithSso(token: string) {
+    const claims = await this.nbiSsoService.verifyToken(token);
+
+    const role = await this.sellerService.findRoleByEmail(claims.email);
+    if (!role) {
+      throw new UnauthorizedException('Usuario no habilitado en este portal');
+    }
 
     const payload = { username: role.name, sub: role.code };
     const accessToken = this.jwtService.sign(payload);

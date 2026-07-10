@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guard/local.guard';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { SsoLoginDto } from './dto/sso-login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -44,5 +45,12 @@ export class AuthController {
   @Post('otp/refresh')
   async refreshOtp(@Body() body: any) {
     return this.authService.refreshOtp(body.refreshToken);
+  }
+
+  // ── NBI Auth SSO ────────────────────────────────────────────────────────
+
+  @Post('sso')
+  async loginWithSso(@Body() body: SsoLoginDto) {
+    return this.authService.loginWithSso(body.token);
   }
 }

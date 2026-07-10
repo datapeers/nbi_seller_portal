@@ -8,6 +8,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OtpCode } from './entities/otp-code.entity';
+import { NbiSsoService } from './nbi-sso.service';
 
 @Module({
   imports: [
@@ -25,7 +26,7 @@ import { OtpCode } from './entities/otp-code.entity';
     TypeOrmModule.forFeature([OtpCode], 'postgresConnection'),
     SellersModule,
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, NbiSsoService],
   controllers: [AuthController],
 })
 export class AuthModule {}

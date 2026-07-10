@@ -48,6 +48,10 @@ lerna-debug.log*
 .temp
 .tmp
 
+# SSH tunnel (llave privada y script local)
+*.pem
+tunnel.bat
+
 # Runtime data
 pids
 *.pid
